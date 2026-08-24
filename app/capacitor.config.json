@@ -1,0 +1,9 @@
+{
+  "appId": "com.vit.rollcall",
+  "appName": "Roll Call",
+  "webDir": "www",
+  "server": {
+    "androidScheme": "http",
+    "cleartext": true
+  }
+}

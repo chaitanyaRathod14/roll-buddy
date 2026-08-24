@@ -1,0 +1,1317 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Roll Call — Face Recognition Attendance</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0F1B2D;
+    --surface: #16283F;
+    --surface-2: #1E3350;
+    --line: #2A3F5C;
+    --text: #EAF0F6;
+    --muted: #8CA0B8;
+    --present: #34D399;
+    --present-dim: #163C30;
+    --unknown: #FB7266;
+    --unknown-dim: #3E1F1C;
+    --gold: #E8B23D;
+    --radius: 14px;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    background-image:
+      radial-gradient(circle at 15% 0%, rgba(232,178,61,0.07), transparent 40%),
+      radial-gradient(circle at 85% 100%, rgba(52,211,153,0.06), transparent 45%);
+    color: var(--text);
+    font-family: 'Inter', system-ui, sans-serif;
+    min-height: 100vh;
+  }
+
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 32px 24px 80px; }
+
+  header.top {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--line);
+    padding-bottom: 20px;
+    margin-bottom: 28px;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+
+  .brand { display: flex; align-items: baseline; gap: 10px; }
+  .brand .mark {
+    font-family: 'Fraunces', serif;
+    font-weight: 700;
+    font-size: 15px;
+    color: var(--gold);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    border: 1px solid var(--gold);
+    border-radius: 6px;
+    padding: 3px 8px;
+    transform: rotate(-2deg);
+  }
+  h1 {
+    font-family: 'Fraunces', serif;
+    font-weight: 600;
+    font-size: 28px;
+    margin: 0;
+  }
+  #clock {
+    font-family: 'IBM Plex Mono', monospace;
+    color: var(--muted);
+    font-size: 13px;
+  }
+
+  nav.tabs {
+    display: inline-flex;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    padding: 4px;
+    margin-bottom: 20px;
+    gap: 4px;
+  }
+  nav.tabs button {
+    font-family: 'Inter', sans-serif;
+    font-weight: 600;
+    font-size: 14px;
+    color: var(--muted);
+    background: transparent;
+    border: none;
+    padding: 9px 20px;
+    border-radius: 999px;
+    cursor: pointer;
+    transition: all 0.18s ease;
+  }
+  nav.tabs button.active {
+    background: var(--gold);
+    color: #26200a;
+  }
+
+  nav.subtabs {
+    display: inline-flex;
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    padding: 3px;
+    margin-bottom: 20px;
+    gap: 4px;
+  }
+  nav.subtabs button {
+    font-family: 'Inter', sans-serif;
+    font-weight: 600;
+    font-size: 13px;
+    color: var(--muted);
+    background: transparent;
+    border: none;
+    padding: 7px 16px;
+    border-radius: 999px;
+    cursor: pointer;
+    transition: all 0.18s ease;
+  }
+  nav.subtabs button.active {
+    background: var(--present);
+    color: #0b2318;
+  }
+
+  .panel { display: none; }
+  .panel.active { display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 24px; }
+  @media (max-width: 760px) { .panel.active { grid-template-columns: 1fr; } }
+
+  .subpanel { display: none; }
+  .subpanel.active { display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 24px; }
+  @media (max-width: 760px) { .subpanel.active { grid-template-columns: 1fr; } }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 20px;
+  }
+  .card h2 {
+    font-family: 'Fraunces', serif;
+    font-weight: 600;
+    font-size: 16px;
+    margin: 0 0 4px;
+  }
+  .card .hint { color: var(--muted); font-size: 13px; margin: 0 0 16px; }
+
+  .camera-box {
+    position: relative;
+    border-radius: 10px;
+    overflow: hidden;
+    background: #000;
+    aspect-ratio: 4 / 3;
+  }
+  .camera-box video, .camera-box canvas.overlay {
+    position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover;
+  }
+  .camera-box canvas.overlay { object-fit: contain; }
+  .camera-box .frozen-frame {
+    position: absolute; inset: 0; width: 100%; height: 100%;
+    object-fit: contain; background: #000;
+  }
+
+  .attend-subpanel { display: none; }
+  .attend-subpanel.active { display: block; }
+
+  .scan-line {
+    position: absolute; left: 0; right: 0; height: 2px;
+    background: linear-gradient(90deg, transparent, var(--present), transparent);
+    top: 0; opacity: 0;
+    box-shadow: 0 0 10px var(--present);
+  }
+  .scan-line.active { animation: sweep 0.9s ease-in-out; }
+  @keyframes sweep {
+    0% { top: 0; opacity: 1; }
+    100% { top: 100%; opacity: 0; }
+  }
+
+  .cam-controls { display: flex; gap: 10px; margin-top: 14px; flex-wrap: wrap; }
+
+  button.primary, button.ghost {
+    font-family: 'Inter', sans-serif;
+    font-weight: 600;
+    font-size: 14px;
+    border-radius: 9px;
+    padding: 10px 16px;
+    cursor: pointer;
+    border: 1px solid transparent;
+    transition: transform 0.12s ease, background 0.15s ease;
+  }
+  button.primary { background: var(--present); color: #0b2318; }
+  button.primary:hover { transform: translateY(-1px); }
+  button.primary:disabled { background: var(--line); color: var(--muted); cursor: not-allowed; transform: none; }
+  button.ghost { background: transparent; color: var(--text); border-color: var(--line); }
+  button.ghost:hover { border-color: var(--muted); }
+  button.ghost:disabled { color: var(--muted); cursor: not-allowed; }
+
+  .thumbs { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
+  .thumbs img { width: 56px; height: 56px; object-fit: cover; border-radius: 6px; border: 1px solid var(--line); }
+
+  label { display: block; font-size: 13px; color: var(--muted); margin: 14px 0 6px; }
+  input[type="text"], input[type="file"], select {
+    width: 100%;
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 10px 12px;
+    color: var(--text);
+    font-family: 'Inter', sans-serif;
+    font-size: 14px;
+  }
+  select { appearance: none; cursor: pointer; }
+  input[type="text"]:focus, select:focus, button:focus-visible {
+    outline: 2px solid var(--gold);
+    outline-offset: 2px;
+  }
+
+  .field-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+  @media (max-width: 480px) { .field-row { grid-template-columns: 1fr; } }
+
+  .code-preview {
+    margin-top: 14px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: var(--surface-2);
+    border: 1px dashed var(--line);
+    border-radius: 8px;
+    padding: 10px 12px;
+  }
+  .code-preview .label { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
+  .code-preview .value {
+    font-family: 'IBM Plex Mono', monospace;
+    font-weight: 600;
+    font-size: 15px;
+    color: var(--gold);
+  }
+
+  .status-line { font-size: 13px; margin-top: 12px; min-height: 18px; }
+  .status-line.ok { color: var(--present); }
+  .status-line.err { color: var(--unknown); }
+  .status-line.busy { color: var(--gold); }
+
+  .roster { margin-top: 18px; display: flex; flex-direction: column; gap: 8px; max-height: 320px; overflow-y: auto; }
+  .roster .empty { color: var(--muted); font-size: 13px; padding: 12px 0; }
+  .roster-item {
+    display: flex; align-items: center; justify-content: space-between;
+    background: var(--surface-2); border: 1px solid var(--line);
+    border-radius: 8px; padding: 8px 12px; gap: 10px;
+  }
+  .roster-item .name { font-weight: 600; font-size: 13px; }
+  .roster-item .meta { font-family: 'IBM Plex Mono', monospace; color: var(--muted); font-size: 11px; }
+  .roster-item .meta .code { color: var(--gold); }
+  .roster-item button {
+    background: none; border: none; color: var(--unknown); cursor: pointer; font-size: 12px; white-space: nowrap;
+  }
+
+  .results { margin-top: 18px; }
+  .results h3 { font-size: 13px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); margin: 16px 0 8px; }
+  .result-item {
+    display: flex; align-items: center; justify-content: space-between;
+    border-radius: 8px; padding: 9px 12px; margin-bottom: 6px;
+  }
+  .result-item.present { background: var(--present-dim); border: 1px solid #1f5b46; }
+  .result-item.unknown { background: var(--unknown-dim); border: 1px solid #6b2f2a; }
+  .result-item .name { font-weight: 600; font-size: 14px; }
+  .result-item .sub { font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--muted); }
+  .result-item .conf { font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: var(--muted); }
+  .stamp {
+    font-family: 'Fraunces', serif; font-weight: 700; font-size: 10px;
+    text-transform: uppercase; letter-spacing: 0.06em;
+    padding: 2px 7px; border-radius: 4px; transform: rotate(-3deg);
+  }
+  .stamp.present { border: 1.5px solid var(--present); color: var(--present); }
+  .stamp.unknown { border: 1.5px solid var(--unknown); color: var(--unknown); }
+
+  /* --- Bulk upload / face queue --- */
+  .dropzone {
+    border: 1.5px dashed var(--line);
+    border-radius: 10px;
+    padding: 22px;
+    text-align: center;
+    color: var(--muted);
+    font-size: 13px;
+    cursor: pointer;
+    transition: border-color 0.15s ease;
+  }
+  .dropzone:hover { border-color: var(--gold); }
+  .dropzone img.preview {
+    max-width: 100%;
+    max-height: 220px;
+    border-radius: 8px;
+    margin-top: 12px;
+    display: none;
+  }
+
+  .face-strip { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
+  .face-strip .face-chip {
+    width: 52px; height: 52px; border-radius: 8px; overflow: hidden;
+    border: 2px solid var(--line); position: relative; cursor: default;
+  }
+  .face-strip .face-chip img { width: 100%; height: 100%; object-fit: cover; }
+  .face-strip .face-chip.current { border-color: var(--gold); }
+  .face-strip .face-chip.done { border-color: var(--present); }
+  .face-strip .face-chip.skipped { border-color: var(--unknown); opacity: 0.55; }
+  .face-strip .face-chip .n {
+    position: absolute; bottom: 0; right: 0; background: rgba(0,0,0,0.65);
+    color: #fff; font-size: 9px; font-family: 'IBM Plex Mono', monospace;
+    padding: 1px 4px; border-radius: 4px 0 0 0;
+  }
+
+  .queue-card { display: none; }
+  .queue-card.active { display: block; }
+  .queue-progress {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 10px;
+  }
+  .queue-progress .count { font-family: 'IBM Plex Mono', monospace; color: var(--muted); font-size: 12px; }
+  .queue-face-preview {
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    max-width: 180px;
+    border-radius: 10px;
+    overflow: hidden;
+    border: 1px solid var(--line);
+    background: #000;
+    margin: 0 auto 6px;
+  }
+  .queue-face-preview img { width: 100%; height: 100%; object-fit: cover; }
+
+  .bulk-summary {
+    margin-top: 14px;
+    font-size: 13px;
+    color: var(--muted);
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 10px 12px;
+    display: none;
+  }
+
+  footer.note { color: var(--muted); font-size: 12px; margin-top: 40px; line-height: 1.6; }
+  footer.note code { color: var(--gold); }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="top">
+    <div class="brand">
+      <span class="mark">Roll Call</span>
+      <h1>Attendance by face match</h1>
+    </div>
+    <div id="clock"></div>
+  </header>
+
+  <nav class="tabs">
+    <button class="tab-btn active" data-tab="enroll">Enroll student</button>
+    <button class="tab-btn" data-tab="attend">Take attendance</button>
+  </nav>
+
+  <!-- ENROLL PANEL -->
+  <section class="panel active" id="panel-enroll">
+
+    <div style="grid-column: 1 / -1;">
+      <nav class="subtabs">
+        <button class="subtab-btn active" data-subtab="camera">Camera capture</button>
+        <button class="subtab-btn" data-subtab="upload">Upload photo (multiple faces)</button>
+      </nav>
+    </div>
+
+    <!-- CAMERA ENROLL SUBPANEL -->
+    <div class="subpanel active" id="subpanel-camera" style="grid-column: 1 / -1;">
+      <div class="card">
+        <h2>Capture reference photos</h2>
+        <p class="hint">Take 3–5 clear, front-facing shots of one student. More angles make matching more reliable.</p>
+        <div class="camera-box" id="enroll-camera-box">
+          <video id="enroll-video" autoplay playsinline muted></video>
+          <div class="scan-line" id="enroll-scan"></div>
+        </div>
+        <div class="cam-controls">
+          <button class="primary" id="enroll-capture-btn">Capture photo</button>
+          <button class="ghost" id="enroll-clear-btn">Clear photos</button>
+        </div>
+        <div class="thumbs" id="enroll-thumbs"></div>
+      </div>
+
+      <div class="card">
+        <h2>Student details</h2>
+        <p class="hint">Save the captured photos as this student's face profile.</p>
+
+        <label for="student-name">Full name</label>
+        <input type="text" id="student-name" placeholder="e.g. Chaitanya Rathod" />
+
+        <label for="student-prn">PRN / GR No.</label>
+        <input type="text" id="student-prn" placeholder="e.g. 1252130014" />
+
+        <div class="field-row">
+          <div>
+            <label for="student-year">Year</label>
+            <select id="student-year">
+              <option value="">Year</option>
+              <option value="FY">FY</option>
+              <option value="SY">SY</option>
+              <option value="TY">TY</option>
+              <option value="BE">BE</option>
+            </select>
+          </div>
+          <div>
+            <label for="student-branch">Branch</label>
+            <input type="text" id="student-branch" placeholder="e.g. IT" />
+          </div>
+          <div>
+            <label for="student-division">Division</label>
+            <input type="text" id="student-division" placeholder="e.g. G" />
+          </div>
+        </div>
+
+        <div class="code-preview">
+          <span class="label">Code</span>
+          <span class="value" id="student-code-preview">—</span>
+        </div>
+
+        <div class="cam-controls">
+          <button class="primary" id="enroll-submit-btn">Save student</button>
+        </div>
+        <div class="status-line" id="enroll-status"></div>
+
+        <div class="roster">
+          <div class="empty" id="roster-empty">Loading roster…</div>
+          <div id="roster-list"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- BULK UPLOAD ENROLL SUBPANEL -->
+    <div class="subpanel" id="subpanel-upload" style="grid-column: 1 / -1;">
+      <div class="card">
+        <h2>Upload a photo</h2>
+        <p class="hint">Upload a single photo containing one or more students (e.g. a class or group photo). Every detected face gets numbered so you can register each one in turn.</p>
+
+        <div class="dropzone" id="upload-dropzone">
+          <div id="upload-dropzone-text">Click to choose a photo, or drag one here</div>
+          <img class="preview" id="upload-preview" alt="Uploaded photo preview" />
+        </div>
+        <input type="file" id="upload-file-input" accept="image/*" style="display:none" />
+
+        <div class="cam-controls">
+          <button class="primary" id="detect-faces-btn" disabled>Detect faces</button>
+          <button class="ghost" id="upload-reset-btn">Reset</button>
+        </div>
+
+        <div class="status-line" id="upload-status"></div>
+        <div class="face-strip" id="face-strip"></div>
+      </div>
+
+      <div class="card">
+        <h2>Register each face</h2>
+        <p class="hint" id="queue-hint">Upload and detect faces first — then fill in each student's details one by one.</p>
+
+        <div class="queue-card" id="queue-card">
+          <div class="queue-progress">
+            <span id="queue-progress-label">Face 1 of 1</span>
+            <span class="count" id="queue-progress-count"></span>
+          </div>
+          <div class="queue-face-preview" id="queue-face-preview">
+            <img id="queue-face-img" alt="Detected face" />
+          </div>
+
+          <label for="queue-name">Full name</label>
+          <input type="text" id="queue-name" placeholder="e.g. Chaitanya Rathod" />
+
+          <label for="queue-prn">PRN / GR No.</label>
+          <input type="text" id="queue-prn" placeholder="e.g. 1252130014" />
+
+          <div class="field-row">
+            <div>
+              <label for="queue-year">Year</label>
+              <select id="queue-year">
+                <option value="">Year</option>
+                <option value="FY">FY</option>
+                <option value="SY">SY</option>
+                <option value="TY">TY</option>
+                <option value="BE">BE</option>
+              </select>
+            </div>
+            <div>
+              <label for="queue-branch">Branch</label>
+              <input type="text" id="queue-branch" placeholder="e.g. IT" />
+            </div>
+            <div>
+              <label for="queue-division">Division</label>
+              <input type="text" id="queue-division" placeholder="e.g. G" />
+            </div>
+          </div>
+
+          <div class="code-preview">
+            <span class="label">Code</span>
+            <span class="value" id="queue-code-preview">—</span>
+          </div>
+
+          <div class="cam-controls">
+            <button class="primary" id="queue-save-btn">Save &amp; next</button>
+            <button class="ghost" id="queue-skip-btn">Skip this face</button>
+          </div>
+          <div class="status-line" id="queue-status"></div>
+        </div>
+
+        <div class="bulk-summary" id="bulk-summary"></div>
+      </div>
+    </div>
+
+  </section>
+
+  <!-- ATTENDANCE PANEL -->
+  <section class="panel" id="panel-attend">
+    <div class="card">
+      <h2>Scan the classroom</h2>
+      <p class="hint">Capture with the camera, or upload a class photo — every enrolled student is checked against every face found.</p>
+
+      <nav class="subtabs">
+        <button class="attend-subtab-btn active" data-attendsub="camera">Live camera</button>
+        <button class="attend-subtab-btn" data-attendsub="upload">Upload photo</button>
+      </nav>
+
+      <div class="attend-subpanel active" id="attend-subpanel-camera">
+        <div class="camera-box" id="attend-camera-box">
+          <video id="attend-video" autoplay playsinline muted></video>
+          <canvas class="overlay" id="attend-overlay"></canvas>
+          <div class="scan-line" id="attend-scan"></div>
+        </div>
+        <div class="cam-controls">
+          <button class="primary" id="attend-capture-btn">Capture class photo</button>
+          <button class="ghost" id="attend-retake-btn">Retake</button>
+        </div>
+      </div>
+
+      <div class="attend-subpanel" id="attend-subpanel-upload">
+        <div class="dropzone" id="attend-dropzone">
+          <div id="attend-dropzone-text">Click to choose a class photo, or drag one here</div>
+        </div>
+        <input type="file" id="attend-file-input" accept="image/*" style="display:none" />
+        <div class="camera-box" id="attend-upload-box" style="margin-top:14px; display:none;">
+          <img class="frozen-frame" id="attend-upload-img" alt="Uploaded class photo" style="display:block;" />
+          <canvas class="overlay" id="attend-upload-overlay"></canvas>
+        </div>
+        <div class="cam-controls">
+          <button class="primary" id="attend-upload-recognize-btn" disabled>Take attendance from photo</button>
+          <button class="ghost" id="attend-upload-reset-btn">Reset</button>
+        </div>
+      </div>
+
+      <div class="status-line" id="attend-status"></div>
+    </div>
+
+    <div class="card">
+      <h2>Register</h2>
+      <p class="hint" id="attend-summary">Capture or upload a photo to see who's present.</p>
+      <div class="results" id="attend-results"></div>
+    </div>
+  </section>
+
+</div>
+
+<script>
+// ---- Configuration -----------------------------------------------------
+const API_BASE = "http://localhost:5001";
+
+// ---- Clock ---------------------------------------------------------------
+function tickClock() {
+  document.getElementById("clock").textContent = new Date().toLocaleString(undefined, {
+    weekday: "short", hour: "2-digit", minute: "2-digit", second: "2-digit"
+  });
+}
+tickClock();
+setInterval(tickClock, 1000);
+
+// ---- Helpers -------------------------------------------------------------
+function escapeHtml(str) {
+  const div = document.createElement("div");
+  div.textContent = str == null ? "" : String(str);
+  return div.innerHTML;
+}
+
+function buildCode(year, branch, division) {
+  const parts = [year, branch, division]
+    .map(p => (p || "").trim().toUpperCase())
+    .filter(Boolean);
+  return parts.length ? parts.join("-") : "—";
+}
+
+// ---- Tabs (top-level: Enroll / Attend) -----------------------------------
+const tabButtons = document.querySelectorAll(".tab-btn");
+tabButtons.forEach(btn => {
+  btn.addEventListener("click", () => {
+    tabButtons.forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+    document.querySelectorAll(".panel").forEach(p => p.classList.remove("active"));
+    document.getElementById("panel-" + btn.dataset.tab).classList.add("active");
+    if (btn.dataset.tab === "enroll") {
+      const activeSub = document.querySelector(".subtab-btn.active");
+      if (!activeSub || activeSub.dataset.subtab === "camera") startStream(enrollVideo, "enroll");
+    } else {
+      startStream(attendVideo, "attend");
+    }
+  });
+});
+
+// ---- Sub-tabs (Enroll: Camera / Upload photo) -----------------------------
+const subtabButtons = document.querySelectorAll(".subtab-btn");
+subtabButtons.forEach(btn => {
+  btn.addEventListener("click", () => {
+    subtabButtons.forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+    document.querySelectorAll(".subpanel").forEach(p => p.classList.remove("active"));
+    document.getElementById("subpanel-" + btn.dataset.subtab).classList.add("active");
+    if (btn.dataset.subtab === "camera") startStream(enrollVideo, "enroll");
+  });
+});
+
+// ---- Camera handling ---------------------------------------------------
+const enrollVideo = document.getElementById("enroll-video");
+const attendVideo = document.getElementById("attend-video");
+const streams = {};
+
+async function startStream(videoEl, key) {
+  if (streams[key]) return; // already running
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" }, audio: false });
+    streams[key] = stream;
+    videoEl.srcObject = stream;
+  } catch (err) {
+    console.error(err);
+    const statusEl = document.getElementById(key === "enroll" ? "enroll-status" : "attend-status");
+    if (statusEl) {
+      statusEl.textContent = "Couldn't access the camera. Check browser permissions and reload.";
+      statusEl.className = "status-line err";
+    }
+  }
+}
+
+function captureFrame(videoEl) {
+  const canvas = document.createElement("canvas");
+  canvas.width = videoEl.videoWidth || 640;
+  canvas.height = videoEl.videoHeight || 480;
+  const ctx = canvas.getContext("2d");
+  ctx.drawImage(videoEl, 0, 0, canvas.width, canvas.height);
+  return { dataUrl: canvas.toDataURL("image/jpeg", 0.85), width: canvas.width, height: canvas.height };
+}
+
+function flashScan(id) {
+  const el = document.getElementById(id);
+  el.classList.remove("active");
+  void el.offsetWidth; // restart animation
+  el.classList.add("active");
+}
+
+// Start the enroll camera on load (default active tab/subtab)
+startStream(enrollVideo, "enroll");
+
+// ---- Roster (persisted server-side in MongoDB, fetched via /students) ----
+// The frontend never holds face embeddings — only the backend ever sees
+// those, straight from the database. This local array is just display data
+// plus what's needed to compute "not seen" during attendance.
+let roster = []; // { prnGr, studentId, name }
+let capturedPhotos = []; // dataUrls for the student currently being enrolled via camera
+
+async function loadRoster() {
+  const empty = document.getElementById("roster-empty");
+  try {
+    const res = await fetch(`${API_BASE}/students`);
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Failed to load roster");
+    roster = (data.students || []).map(s => ({
+      prnGr: s.prn_gr,
+      studentId: s.student_id,
+      name: s.name,
+      branch: s.branch,
+      division: s.division,
+      year: s.year,
+    }));
+  } catch (err) {
+    console.error(err);
+    empty.textContent = "Couldn't load the roster from the database. Is MongoDB running?";
+  }
+  renderRoster();
+}
+
+function renderRoster() {
+  const list = document.getElementById("roster-list");
+  const empty = document.getElementById("roster-empty");
+  list.innerHTML = "";
+  if (roster.length === 0) {
+    empty.style.display = "block";
+    if (empty.textContent === "Loading roster…") empty.textContent = "No students enrolled yet.";
+  } else {
+    empty.style.display = "none";
+  }
+  roster.forEach(s => {
+    const row = document.createElement("div");
+    row.className = "roster-item";
+    row.innerHTML = `
+      <div>
+        <div class="name">${escapeHtml(s.name)}</div>
+        <div class="meta"><span class="code">${escapeHtml(s.studentId)}</span> · PRN ${escapeHtml(s.prnGr)}</div>
+      </div>
+      <button data-prn="${escapeHtml(s.prnGr)}">Remove</button>
+    `;
+    row.querySelector("button").addEventListener("click", async (e) => {
+      const prn = e.target.dataset.prn;
+      e.target.disabled = true;
+      e.target.textContent = "Removing…";
+      try {
+        const res = await fetch(`${API_BASE}/students/${encodeURIComponent(prn)}`, { method: "DELETE" });
+        if (!res.ok) throw new Error("Delete failed");
+        await loadRoster();
+      } catch (err) {
+        console.error(err);
+        e.target.disabled = false;
+        e.target.textContent = "Remove";
+      }
+    });
+    list.appendChild(row);
+  });
+}
+
+// ---- Camera enroll flow -------------------------------------------------
+document.getElementById("enroll-capture-btn").addEventListener("click", () => {
+  if (capturedPhotos.length >= 5) return;
+  flashScan("enroll-scan");
+  const { dataUrl } = captureFrame(enrollVideo);
+  capturedPhotos.push(dataUrl);
+  renderThumbs();
+});
+
+document.getElementById("enroll-clear-btn").addEventListener("click", () => {
+  capturedPhotos = [];
+  renderThumbs();
+});
+
+function renderThumbs() {
+  const wrap = document.getElementById("enroll-thumbs");
+  wrap.innerHTML = "";
+  capturedPhotos.forEach(src => {
+    const img = document.createElement("img");
+    img.src = src;
+    wrap.appendChild(img);
+  });
+}
+
+// Live "Code" preview for the camera-enroll fields
+const camYearEl = document.getElementById("student-year");
+const camBranchEl = document.getElementById("student-branch");
+const camDivisionEl = document.getElementById("student-division");
+const camCodePreviewEl = document.getElementById("student-code-preview");
+function updateCamCodePreview() {
+  camCodePreviewEl.textContent = buildCode(camYearEl.value, camBranchEl.value, camDivisionEl.value);
+}
+[camYearEl, camBranchEl, camDivisionEl].forEach(el => el.addEventListener("input", updateCamCodePreview));
+camYearEl.addEventListener("change", updateCamCodePreview);
+
+document.getElementById("enroll-submit-btn").addEventListener("click", async () => {
+  const name = document.getElementById("student-name").value.trim();
+  const prnGr = document.getElementById("student-prn").value.trim();
+  const year = camYearEl.value.trim();
+  const branch = camBranchEl.value.trim();
+  const division = camDivisionEl.value.trim();
+  const statusEl = document.getElementById("enroll-status");
+
+  if (!name || !prnGr) {
+    statusEl.textContent = "Enter a name and PRN/GR number first.";
+    statusEl.className = "status-line err";
+    return;
+  }
+  if (!year || !branch || !division) {
+    statusEl.textContent = "Select the year and enter branch and division.";
+    statusEl.className = "status-line err";
+    return;
+  }
+  if (capturedPhotos.length < 1) {
+    statusEl.textContent = "Capture at least one photo first.";
+    statusEl.className = "status-line err";
+    return;
+  }
+
+  statusEl.textContent = "Generating an augmented face profile (this takes a bit longer) and saving to the database...";
+  statusEl.className = "status-line busy";
+
+  try {
+    const res = await fetch(`${API_BASE}/enroll`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        prn_gr: prnGr, name, year, branch, division, images: capturedPhotos,
+      }),
+    });
+    const data = await res.json();
+
+    if (!res.ok) {
+      statusEl.textContent = data.error || "Enrollment failed.";
+      statusEl.className = "status-line err";
+      return;
+    }
+
+    await loadRoster();
+    statusEl.textContent = `Saved ${data.name} (${data.student_id}) — ${data.photos_used} of ${capturedPhotos.length} photos used, averaged from ${data.embeddings_used} embeddings (original + augmented).`;
+    statusEl.className = "status-line ok";
+
+    capturedPhotos = [];
+    renderThumbs();
+    document.getElementById("student-name").value = "";
+    document.getElementById("student-prn").value = "";
+    document.getElementById("student-year").value = "";
+    document.getElementById("student-branch").value = "";
+    document.getElementById("student-division").value = "";
+    updateCamCodePreview();
+  } catch (err) {
+    console.error(err);
+    statusEl.textContent = "Couldn't reach the recognition service. Is the backend running?";
+    statusEl.className = "status-line err";
+  }
+});
+
+// ---- Bulk upload enroll flow (multi-face photo) --------------------------
+const dropzone = document.getElementById("upload-dropzone");
+const dropzoneText = document.getElementById("upload-dropzone-text");
+const uploadPreview = document.getElementById("upload-preview");
+const uploadFileInput = document.getElementById("upload-file-input");
+const detectFacesBtn = document.getElementById("detect-faces-btn");
+const uploadStatusEl = document.getElementById("upload-status");
+const faceStripEl = document.getElementById("face-strip");
+const queueHintEl = document.getElementById("queue-hint");
+const queueCardEl = document.getElementById("queue-card");
+const queueProgressLabelEl = document.getElementById("queue-progress-label");
+const queueProgressCountEl = document.getElementById("queue-progress-count");
+const queueFaceImgEl = document.getElementById("queue-face-img");
+const queueStatusEl = document.getElementById("queue-status");
+const bulkSummaryEl = document.getElementById("bulk-summary");
+
+let uploadedPhotoDataUrl = null;
+let detectedFaces = []; // { face_index, thumbnail, face_location }
+let queueIndex = 0; // index into detectedFaces currently being registered
+let queueSavedCount = 0;
+let queueSkippedCount = 0;
+
+dropzone.addEventListener("click", () => uploadFileInput.click());
+dropzone.addEventListener("dragover", (e) => { e.preventDefault(); dropzone.style.borderColor = "var(--gold)"; });
+dropzone.addEventListener("dragleave", () => { dropzone.style.borderColor = ""; });
+dropzone.addEventListener("drop", (e) => {
+  e.preventDefault();
+  dropzone.style.borderColor = "";
+  if (e.dataTransfer.files && e.dataTransfer.files[0]) handleUploadFile(e.dataTransfer.files[0]);
+});
+uploadFileInput.addEventListener("change", (e) => {
+  if (e.target.files && e.target.files[0]) handleUploadFile(e.target.files[0]);
+});
+
+function handleUploadFile(file) {
+  if (!file.type.startsWith("image/")) {
+    uploadStatusEl.textContent = "Please choose an image file.";
+    uploadStatusEl.className = "status-line err";
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = () => {
+    uploadedPhotoDataUrl = reader.result;
+    uploadPreview.src = uploadedPhotoDataUrl;
+    uploadPreview.style.display = "block";
+    dropzoneText.textContent = file.name;
+    detectFacesBtn.disabled = false;
+    uploadStatusEl.textContent = "";
+    resetFaceQueue();
+  };
+  reader.readAsDataURL(file);
+}
+
+document.getElementById("upload-reset-btn").addEventListener("click", () => {
+  uploadedPhotoDataUrl = null;
+  uploadPreview.style.display = "none";
+  uploadPreview.src = "";
+  dropzoneText.textContent = "Click to choose a photo, or drag one here";
+  detectFacesBtn.disabled = true;
+  uploadFileInput.value = "";
+  uploadStatusEl.textContent = "";
+  uploadStatusEl.className = "status-line";
+  resetFaceQueue();
+});
+
+function resetFaceQueue() {
+  detectedFaces = [];
+  queueIndex = 0;
+  queueSavedCount = 0;
+  queueSkippedCount = 0;
+  faceStripEl.innerHTML = "";
+  queueCardEl.classList.remove("active");
+  bulkSummaryEl.style.display = "none";
+  bulkSummaryEl.textContent = "";
+  queueHintEl.textContent = "Upload and detect faces first — then fill in each student's details one by one.";
+  queueHintEl.style.display = "block";
+}
+
+detectFacesBtn.addEventListener("click", async () => {
+  if (!uploadedPhotoDataUrl) return;
+  uploadStatusEl.textContent = "Detecting faces in the photo...";
+  uploadStatusEl.className = "status-line busy";
+  detectFacesBtn.disabled = true;
+
+  try {
+    const res = await fetch(`${API_BASE}/detect_faces`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ photo: uploadedPhotoDataUrl }),
+    });
+    const data = await res.json();
+
+    if (!res.ok) {
+      uploadStatusEl.textContent = data.error || "Face detection failed.";
+      uploadStatusEl.className = "status-line err";
+      detectFacesBtn.disabled = false;
+      return;
+    }
+
+    detectedFaces = data.faces || [];
+    if (detectedFaces.length === 0) {
+      uploadStatusEl.textContent = "No faces detected in that photo. Try a clearer image.";
+      uploadStatusEl.className = "status-line err";
+      detectFacesBtn.disabled = false;
+      return;
+    }
+
+    uploadStatusEl.textContent = `Detected ${detectedFaces.length} face(s). Fill in details for each one below.`;
+    uploadStatusEl.className = "status-line ok";
+    renderFaceStrip();
+    queueIndex = 0;
+    queueSavedCount = 0;
+    queueSkippedCount = 0;
+    queueHintEl.style.display = "none";
+    showQueueFace(0);
+  } catch (err) {
+    console.error(err);
+    uploadStatusEl.textContent = "Couldn't reach the recognition service. Is the backend running?";
+    uploadStatusEl.className = "status-line err";
+    detectFacesBtn.disabled = false;
+  }
+});
+
+function renderFaceStrip() {
+  faceStripEl.innerHTML = "";
+  detectedFaces.forEach((f, i) => {
+    const chip = document.createElement("div");
+    chip.className = "face-chip";
+    chip.id = `face-chip-${i}`;
+    chip.innerHTML = `<img src="${f.thumbnail}" alt="Face ${f.face_index}" /><span class="n">${f.face_index}</span>`;
+    faceStripEl.appendChild(chip);
+  });
+}
+
+function markChip(i, cls) {
+  const chip = document.getElementById(`face-chip-${i}`);
+  if (chip) chip.classList.add(cls);
+}
+
+function showQueueFace(i) {
+  if (i >= detectedFaces.length) {
+    finishQueue();
+    return;
+  }
+  queueCardEl.classList.add("active");
+  document.querySelectorAll(".face-chip").forEach(c => c.classList.remove("current"));
+  markChip(i, "current");
+
+  const face = detectedFaces[i];
+  queueFaceImgEl.src = face.thumbnail;
+  queueProgressLabelEl.textContent = `Face ${face.face_index} of ${detectedFaces.length}`;
+  queueProgressCountEl.textContent = `${queueSavedCount} saved · ${queueSkippedCount} skipped`;
+
+  document.getElementById("queue-name").value = "";
+  document.getElementById("queue-prn").value = "";
+  document.getElementById("queue-year").value = "";
+  document.getElementById("queue-branch").value = "";
+  document.getElementById("queue-division").value = "";
+  document.getElementById("queue-code-preview").textContent = "—";
+  queueStatusEl.textContent = "";
+  queueStatusEl.className = "status-line";
+}
+
+// Live "Code" preview for the per-face queue fields
+const qYearEl = document.getElementById("queue-year");
+const qBranchEl = document.getElementById("queue-branch");
+const qDivisionEl = document.getElementById("queue-division");
+const qCodePreviewEl = document.getElementById("queue-code-preview");
+function updateQueueCodePreview() {
+  qCodePreviewEl.textContent = buildCode(qYearEl.value, qBranchEl.value, qDivisionEl.value);
+}
+[qYearEl, qBranchEl, qDivisionEl].forEach(el => el.addEventListener("input", updateQueueCodePreview));
+qYearEl.addEventListener("change", updateQueueCodePreview);
+
+document.getElementById("queue-save-btn").addEventListener("click", async () => {
+  const name = document.getElementById("queue-name").value.trim();
+  const prnGr = document.getElementById("queue-prn").value.trim();
+  const year = qYearEl.value.trim();
+  const branch = qBranchEl.value.trim();
+  const division = qDivisionEl.value.trim();
+
+  if (!name || !prnGr) {
+    queueStatusEl.textContent = "Enter a name and PRN/GR number first.";
+    queueStatusEl.className = "status-line err";
+    return;
+  }
+  if (!year || !branch || !division) {
+    queueStatusEl.textContent = "Select the year and enter branch and division.";
+    queueStatusEl.className = "status-line err";
+    return;
+  }
+
+  queueStatusEl.textContent = "Generating an augmented face profile and saving...";
+  queueStatusEl.className = "status-line busy";
+
+  const face = detectedFaces[queueIndex];
+
+  try {
+    const res = await fetch(`${API_BASE}/enroll`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        prn_gr: prnGr, name, year, branch, division, images: [face.thumbnail],
+      }),
+    });
+    const data = await res.json();
+
+    if (!res.ok) {
+      queueStatusEl.textContent = data.error || "Could not save this student.";
+      queueStatusEl.className = "status-line err";
+      return;
+    }
+
+    queueSavedCount += 1;
+    markChip(queueIndex, "done");
+    await loadRoster();
+    advanceQueue();
+  } catch (err) {
+    console.error(err);
+    queueStatusEl.textContent = "Couldn't reach the recognition service. Is the backend running?";
+    queueStatusEl.className = "status-line err";
+  }
+});
+
+document.getElementById("queue-skip-btn").addEventListener("click", () => {
+  queueSkippedCount += 1;
+  markChip(queueIndex, "skipped");
+  advanceQueue();
+});
+
+function advanceQueue() {
+  queueIndex += 1;
+  showQueueFace(queueIndex);
+}
+
+function finishQueue() {
+  queueCardEl.classList.remove("active");
+  document.querySelectorAll(".face-chip").forEach(c => c.classList.remove("current"));
+  bulkSummaryEl.style.display = "block";
+  bulkSummaryEl.textContent =
+    `Done — ${queueSavedCount} student(s) registered, ${queueSkippedCount} face(s) skipped, out of ${detectedFaces.length} detected.`;
+}
+
+// ---- Attendance sub-tabs (Live camera / Upload photo) ---------------------
+const attendSubtabButtons = document.querySelectorAll(".attend-subtab-btn");
+attendSubtabButtons.forEach(btn => {
+  btn.addEventListener("click", () => {
+    attendSubtabButtons.forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+    document.querySelectorAll(".attend-subpanel").forEach(p => p.classList.remove("active"));
+    document.getElementById("attend-subpanel-" + btn.dataset.attendsub).classList.add("active");
+    if (btn.dataset.attendsub === "camera") startStream(attendVideo, "attend");
+  });
+});
+
+// ---- Attendance flow (shared between camera capture and photo upload) ----
+const attendOverlay = document.getElementById("attend-overlay");
+let attendFrozenFrame = null;
+
+function drawOverlay(data, imgWidth, imgHeight, canvasEl) {
+  canvasEl.width = imgWidth;
+  canvasEl.height = imgHeight;
+  const ctx = canvasEl.getContext("2d");
+  ctx.clearRect(0, 0, imgWidth, imgHeight);
+  ctx.lineWidth = Math.max(2, imgWidth / 250);
+  ctx.font = `${Math.max(14, imgWidth / 45)}px Inter, sans-serif`;
+  ctx.textBaseline = "bottom";
+
+  const drawBox = (loc, label, color) => {
+    const { left, top, right, bottom } = loc;
+    ctx.strokeStyle = color;
+    ctx.strokeRect(left, top, right - left, bottom - top);
+    const textWidth = ctx.measureText(label).width + 10;
+    ctx.fillStyle = color;
+    ctx.fillRect(left, top - 22, textWidth, 22);
+    ctx.fillStyle = "#0F1B2D";
+    ctx.fillText(label, left + 5, top - 5);
+  };
+
+  (data.matched || []).forEach(m => drawBox(m.face_location, `${m.name} · ${m.confidence}%`, "#34D399"));
+  (data.unmatched || []).forEach(u => drawBox(u.face_location, "?", "#FB7266"));
+}
+
+async function runRecognition(photoDataUrl, width, height, overlayCanvasEl) {
+  const statusEl = document.getElementById("attend-status");
+
+  if (roster.length === 0) {
+    statusEl.textContent = "Enroll at least one student before taking attendance.";
+    statusEl.className = "status-line err";
+    return;
+  }
+
+  statusEl.textContent = "Matching faces against the roster...";
+  statusEl.className = "status-line busy";
+  document.getElementById("attend-results").innerHTML = "";
+
+  try {
+    const res = await fetch(`${API_BASE}/recognize`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      // The backend looks up every enrolled student's embedding from MongoDB
+      // itself, so all we send is the captured/uploaded photo.
+      body: JSON.stringify({ class_photo: photoDataUrl }),
+    });
+    const data = await res.json();
+
+    if (!res.ok) {
+      statusEl.textContent = data.error || "Recognition failed.";
+      statusEl.className = "status-line err";
+      return;
+    }
+
+    drawOverlay(data, width, height, overlayCanvasEl);
+    renderResults(data, roster);
+    statusEl.textContent = `Detected ${data.total_faces_detected} face(s).`;
+    statusEl.className = "status-line ok";
+  } catch (err) {
+    console.error(err);
+    statusEl.textContent = "Couldn't reach the recognition service. Is the backend running?";
+    statusEl.className = "status-line err";
+  }
+}
+
+// ---- Attendance via live camera -------------------------------------------
+document.getElementById("attend-capture-btn").addEventListener("click", async () => {
+  if (roster.length === 0) {
+    const statusEl = document.getElementById("attend-status");
+    statusEl.textContent = "Enroll at least one student before taking attendance.";
+    statusEl.className = "status-line err";
+    return;
+  }
+
+  flashScan("attend-scan");
+  const { dataUrl, width, height } = captureFrame(attendVideo);
+  attendFrozenFrame = dataUrl;
+
+  attendVideo.style.display = "none";
+  const boxEl = document.getElementById("attend-camera-box");
+  let frozenImg = boxEl.querySelector("img.frozen-frame");
+  if (!frozenImg) {
+    frozenImg = document.createElement("img");
+    frozenImg.className = "frozen-frame";
+    boxEl.insertBefore(frozenImg, attendOverlay);
+  }
+  frozenImg.src = dataUrl;
+  frozenImg.style.display = "block";
+
+  await runRecognition(dataUrl, width, height, attendOverlay);
+});
+
+document.getElementById("attend-retake-btn").addEventListener("click", () => {
+  attendVideo.style.display = "block";
+  const boxEl = document.getElementById("attend-camera-box");
+  const frozenImg = boxEl.querySelector("img.frozen-frame");
+  if (frozenImg) frozenImg.style.display = "none";
+  const ctx = attendOverlay.getContext("2d");
+  ctx.clearRect(0, 0, attendOverlay.width, attendOverlay.height);
+  document.getElementById("attend-results").innerHTML = "";
+  document.getElementById("attend-status").textContent = "";
+  document.getElementById("attend-summary").textContent = "Capture or upload a photo to see who's present.";
+});
+
+// ---- Attendance via photo upload -------------------------------------------
+const attendDropzone = document.getElementById("attend-dropzone");
+const attendDropzoneText = document.getElementById("attend-dropzone-text");
+const attendFileInput = document.getElementById("attend-file-input");
+const attendUploadBox = document.getElementById("attend-upload-box");
+const attendUploadImg = document.getElementById("attend-upload-img");
+const attendUploadOverlay = document.getElementById("attend-upload-overlay");
+const attendUploadRecognizeBtn = document.getElementById("attend-upload-recognize-btn");
+const attendUploadResetBtn = document.getElementById("attend-upload-reset-btn");
+
+let attendUploadedDataUrl = null;
+
+attendDropzone.addEventListener("click", () => attendFileInput.click());
+attendDropzone.addEventListener("dragover", (e) => { e.preventDefault(); attendDropzone.style.borderColor = "var(--gold)"; });
+attendDropzone.addEventListener("dragleave", () => { attendDropzone.style.borderColor = ""; });
+attendDropzone.addEventListener("drop", (e) => {
+  e.preventDefault();
+  attendDropzone.style.borderColor = "";
+  if (e.dataTransfer.files && e.dataTransfer.files[0]) handleAttendUploadFile(e.dataTransfer.files[0]);
+});
+attendFileInput.addEventListener("change", (e) => {
+  if (e.target.files && e.target.files[0]) handleAttendUploadFile(e.target.files[0]);
+});
+
+function handleAttendUploadFile(file) {
+  const statusEl = document.getElementById("attend-status");
+  if (!file.type.startsWith("image/")) {
+    statusEl.textContent = "Please choose an image file.";
+    statusEl.className = "status-line err";
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = () => {
+    attendUploadedDataUrl = reader.result;
+    attendUploadImg.src = attendUploadedDataUrl;
+    attendUploadBox.style.display = "block";
+    attendDropzoneText.textContent = file.name;
+    attendUploadRecognizeBtn.disabled = false;
+
+    const ctx = attendUploadOverlay.getContext("2d");
+    ctx.clearRect(0, 0, attendUploadOverlay.width, attendUploadOverlay.height);
+    document.getElementById("attend-results").innerHTML = "";
+    statusEl.textContent = "";
+    document.getElementById("attend-summary").textContent = "Capture or upload a photo to see who's present.";
+  };
+  reader.readAsDataURL(file);
+}
+
+attendUploadResetBtn.addEventListener("click", () => {
+  attendUploadedDataUrl = null;
+  attendUploadImg.src = "";
+  attendUploadBox.style.display = "none";
+  attendDropzoneText.textContent = "Click to choose a class photo, or drag one here";
+  attendFileInput.value = "";
+  attendUploadRecognizeBtn.disabled = true;
+  const ctx = attendUploadOverlay.getContext("2d");
+  ctx.clearRect(0, 0, attendUploadOverlay.width, attendUploadOverlay.height);
+  document.getElementById("attend-status").textContent = "";
+});
+
+function getImageDimensions(dataUrl) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => resolve({ width: img.naturalWidth, height: img.naturalHeight });
+    img.src = dataUrl;
+  });
+}
+
+attendUploadRecognizeBtn.addEventListener("click", async () => {
+  if (!attendUploadedDataUrl) return;
+  const dims = await getImageDimensions(attendUploadedDataUrl);
+  await runRecognition(attendUploadedDataUrl, dims.width, dims.height, attendUploadOverlay);
+});
+
+function renderResults(data, currentRoster) {
+  const container = document.getElementById("attend-results");
+  container.innerHTML = "";
+
+  const matchedPrns = new Set((data.matched || []).map(m => m.prn_gr));
+  const absent = currentRoster.filter(s => !matchedPrns.has(s.prnGr));
+
+  document.getElementById("attend-summary").textContent =
+    `${data.matched.length} present · ${data.unmatched.length} unrecognized face(s) · ${absent.length} not seen`;
+
+  const section = (title, items, render) => {
+    if (items.length === 0) return;
+    const h = document.createElement("h3");
+    h.textContent = title;
+    container.appendChild(h);
+    items.forEach(item => container.appendChild(render(item)));
+  };
+
+  section("Present", data.matched, m => {
+    const row = document.createElement("div");
+    row.className = "result-item present";
+    row.innerHTML = `
+      <div>
+        <span class="stamp present">Present</span>
+        <span class="name" style="margin-left:8px">${escapeHtml(m.name)}</span>
+        <div class="sub" style="margin-left:8px">${escapeHtml(m.student_id)} · PRN ${escapeHtml(m.prn_gr)}</div>
+      </div>
+      <span class="conf">${m.confidence}%</span>
+    `;
+    return row;
+  });
+
+  section("Unrecognized faces", data.unmatched, () => {
+    const row = document.createElement("div");
+    row.className = "result-item unknown";
+    row.innerHTML = `
+      <div><span class="stamp unknown">Unknown</span> <span class="name" style="margin-left:8px">Not in roster</span></div>
+    `;
+    return row;
+  });
+
+  section("Not seen", absent, s => {
+    const row = document.createElement("div");
+    row.className = "result-item unknown";
+    row.innerHTML = `
+      <div class="name">${escapeHtml(s.name)}</div>
+      <span class="conf">${escapeHtml(s.studentId)} · PRN ${escapeHtml(s.prnGr)}</span>
+    `;
+    return row;
+  });
+}
+
+loadRoster();
+</script>
+</body>
+</html>

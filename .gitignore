@@ -1,0 +1,30 @@
+# Local configuration and secrets
+.env
+.env.*
+!.env.example
+
+# Python environments and generated files
+env/
+venv/
+__pycache__/
+*.py[cod]
+*.log
+
+# Node / Capacitor dependencies
+node_modules/
+
+# Android and Gradle generated files
+.gradle/
+app/android/.gradle/
+app/android/build/
+app/android/app/build/
+app/android/capacitor-cordova-android-plugins/build/
+app/android/local.properties
+
+# Android Studio / IntelliJ user files
+.idea/
+*.iml
+
+# OS/editor files
+.DS_Store
+Thumbs.db
